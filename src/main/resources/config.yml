@@ -1,0 +1,16 @@
+prefix: '&8[&cU&fC&8]'
+ClanSettings:
+  max_users: 10
+  max_level: 30
+OpenAbilities:
+  chat: 5
+  distributionExperienceEnable: true
+
+UpdateInMinutes: 1
+format_chat: true
+multiply_level_to_experience: 1735
+spawnFireWorks: false
+
+events_upExperience:
+  block: '2-5'
+  attack: '3-7'

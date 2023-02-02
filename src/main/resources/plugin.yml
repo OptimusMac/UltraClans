@@ -1,0 +1,12 @@
+name: UltraClans
+version: '${project.version}'
+main: ru.optimus.UltraClans
+api-version: 1.16
+prefix: UltraClans
+depend: [ Vault ]
+authors: [ OptimusMac ]
+description: I added clans on your server
+website: https://vk.com/kopatychsm2016
+commands:
+  UltraClan:
+    aliases: clan
