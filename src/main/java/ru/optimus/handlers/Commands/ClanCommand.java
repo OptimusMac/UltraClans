@@ -2,10 +2,6 @@ package ru.optimus.handlers.Commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarFlag;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -14,8 +10,12 @@ import org.jetbrains.annotations.NotNull;
 import ru.optimus.Clans.Clan;
 import ru.optimus.Clans.ClanManager;
 import ru.optimus.UltraClans;
+import ru.optimus.Util.Abilities;
 import ru.optimus.Util.InviteHandler;
+import ru.optimus.Util.Roles;
+import ru.optimus.Util.RolesHandler;
 
+import java.util.ArrayList;
 import java.util.Objects;
 
 public class ClanCommand implements CommandExecutor {
@@ -40,6 +40,10 @@ public class ClanCommand implements CommandExecutor {
                     String name = UltraClans.getInstance().alternate(args[1]);
                     if (ClanManager.hasName(name)) {
                         player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Клан с таким названием уже существует!");
+                        return true;
+                    }
+                    if (name.toCharArray().length > 10) {
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Максимальное количество символов в название: " + ChatColor.GOLD + "10");
                         return true;
                     }
                     String tag = args[2];
@@ -74,23 +78,145 @@ public class ClanCommand implements CommandExecutor {
                         return true;
                     }
 
+                    if (name.equalsIgnoreCase(player.getName())) {
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Вы не можете исключить сами себя. Что бы удалить клан воспользуйтесь " + ChatColor.YELLOW + "/clan decline");
+                        return true;
+                    }
+
 
                     ClanManager.kickPlayer(clan, name);
                     clan.remove(name);
-                    player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.YELLOW + "Вы исключили " + ChatColor.GOLD + name + ChatColor.YELLOW + " из своего клана!");
+                    ClanManager.sendAll(clan, ChatColor.GOLD + player.getName() + ChatColor.YELLOW + " исключил игрока " + ChatColor.GOLD + name + ChatColor.YELLOW + " из вашего клана.");
                     return true;
                 } else {
                     ClanManager.getInformation(player);
                 }
             }
 
-            if (args[0].equalsIgnoreCase("distribution")) {
-                if (!UltraClans.getInstance().distribution) {
-                    player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Функция отключена");
+            if (args[0].equalsIgnoreCase("role")) {
+
+                if (args.length < 2 && args[0].equalsIgnoreCase("role")) {
+                    player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "/clan role <create/remove/color> <name/code>");
                     return true;
                 }
+
+                if(args[1].equalsIgnoreCase("set")){
+                    if (args.length < 4 && args[1].equalsIgnoreCase("set")) {
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "/clan role set <playerName> <role>");
+                        return true;
+                    }
+                    if (ClanManager.isClan(player)) {
+                        Clan clan = ClanManager.getClanPlayer(player);
+                        if (clan == null) {
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Системная ошибка! Обратитесь к администратору.");
+                            return true;
+                        }
+
+                        Player toPlayer = Bukkit.getPlayer(args[2]);
+                        String role = args[3];
+                        if(!RolesHandler.hasRoleByName(role)){
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Такой роли не существует!");
+                            return true;
+                        }
+
+                        if(toPlayer == null){
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Игрок оффлайн");
+                            return true;
+                        }
+
+                        if(!ClanManager.isClan(toPlayer)){
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Игрок не в клане");
+                            return true;
+                        }
+
+                        if(ClanManager.getClanPlayer(toPlayer) == null) return true;
+
+                        if(!ClanManager.getClanPlayer(toPlayer).getNameClan().equalsIgnoreCase(clan.getNameClan())){
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Игрок не в вашем клане");
+                            return true;
+                        }
+
+                        clan.setPlayerRole(toPlayer, role);
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.YELLOW + "Вы установили игроку " + ChatColor.GOLD + toPlayer.getName() + ChatColor.YELLOW + " Новую роль!");
+                        return true;
+
+
+                    }else{
+                        ClanManager.getInformation(player);
+                    }
+                }
+
+                if(args[1].equalsIgnoreCase("color")){
+                    if (args.length < 4) {
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "/clan role color <nameRole> <code>");
+                        return true;
+                    }
+                    String color = args[3];
+                    String name = args[2];
+                    if(ChatColor.getByChar(color) == null){
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Код цвета не действительный.");
+                        return true;
+                    }
+
+                    if (ClanManager.isClan(player)) {
+                        Clan clan = ClanManager.getClanPlayer(player);
+                        if (clan == null) {
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Системная ошибка! Обратитесь к администратору.");
+                            return true;
+                        }
+                        Roles role = RolesHandler.getRoleByName(clan.getNameClan(), name);
+                        if(role == null){
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Такой роли не существует!");
+                            return true;
+                        }
+                        role.setColor(ChatColor.getByChar(color));
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.YELLOW + "Вы изменили цвет роли " + ChatColor.GOLD + role.getName() + ChatColor.YELLOW + " на " + ChatColor.getByChar(color) + ChatColor.getByChar(color).name());
+                        return true;
+
+                    }else{
+                        ClanManager.getInformation(player);
+                    }
+                }
+
+
+                if (args[1].equalsIgnoreCase("create")) {
+                    if (ClanManager.isClan(player)) {
+                        Clan clan = ClanManager.getClanPlayer(player);
+                        if (clan == null) {
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Системная ошибка! Обратитесь к администратору.");
+                            return true;
+                        }
+                        if (!clan.getLeader().equalsIgnoreCase(player.getName()) && !player.hasPermission("ru.ultraclans.createRole")) {
+                            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "У вас нет прав на создание роли");
+                            return true;
+
+                        }
+                        String name = args[2];
+                        RolesHandler.createRole(name, clan.getNameClan(), "f", new ArrayList<>());
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.YELLOW + "Вы создали новую роль " + ChatColor.GOLD + name);
+
+                    } else {
+                        ClanManager.getInformation(player);
+                    }
+                }
+            }
+
+            if (args[0].equalsIgnoreCase("skills")) {
+                if (ClanManager.isClan(player)) {
+                    ClanManager.sendSkillInfo(player);
+                } else {
+                    ClanManager.getInformation(player);
+                }
+                return true;
+            }
+
+            if (args[0].equalsIgnoreCase("distribution")) {
                 if (ClanManager.isClan(player)) {
                     Clan clan = ClanManager.getClanPlayer(player);
+                    if (!Abilities.DISTRIBUTION_EXPERIENCE.isEnable()) {
+                        player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Функция отключена");
+                        return true;
+                    }
                     if (clan == null) {
                         player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Системная ошибка! Обратитесь к администратору.");
                         return true;
@@ -273,7 +399,6 @@ public class ClanCommand implements CommandExecutor {
                 String accept = InviteHandler.acceptInvite(player);
                 player.sendMessage(accept);
             }
-
         }
         return true;
     }

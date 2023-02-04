@@ -7,6 +7,12 @@ depend: [ Vault ]
 authors: [ OptimusMac ]
 description: I added clans on your server
 website: https://vk.com/kopatychsm2016
+softdepend: [PlaceholderAPI]
 commands:
   UltraClan:
     aliases: clan
+  ClanChat:
+    aliases:
+      - cc
+      - cchat
+      - chatc

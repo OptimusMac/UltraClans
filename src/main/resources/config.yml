@@ -2,15 +2,45 @@ prefix: '&8[&cU&fC&8]'
 ClanSettings:
   max_users: 10
   max_level: 30
-OpenAbilities:
-  chat: 5
+
+EnableAbilities:
+  experience_boost: true
+  speed: true
+  health: true
+  strength: true
   distributionExperienceEnable: true
+
+OpenAbilities: #openAbilities for level clan
+  chat: 5
+  #abilities
+  distributionExperience: 10
+  experience_boost: 3
+  speed: 4
+  health: 10
+  strength: 25
 
 UpdateInMinutes: 1
 format_chat: true
 multiply_level_to_experience: 1735
-spawnFireWorks: false
+spawnFireWorks: true
 
 events_upExperience:
   block: '2-5'
   attack: '3-7'
+  smelting: '2-4'
+  crafting: '1-3'
+
+Skills:
+  speed: 0.5 #% movement speed
+  health: 0.5 #add maxHealth
+  strength: 0.2 #add attackDamage
+  experience_boost: 2 #Additional experience
+
+chatFormat: "%luckperms_prefix%&8[%tag&8] &f%player%: &7%message%"
+
+ClanChat:
+  ccTag: "&8[&bC&AC&8] %luckperms_prefix%%role% &a%player%: &b%message%"
+
+BaseRole: 'Новичок'
+
+

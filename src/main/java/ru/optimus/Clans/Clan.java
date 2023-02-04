@@ -6,13 +6,18 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import ru.optimus.UltraClans;
+import ru.optimus.Util.Abilities;
+import ru.optimus.Util.Roles;
+import ru.optimus.Util.RolesHandler;
 
+import javax.management.relation.Role;
 import javax.xml.transform.Result;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+
+import static ru.optimus.Clans.ClanManager.removeLast;
 
 public class Clan {
 
@@ -26,8 +31,9 @@ public class Clan {
     private String tag;
     private boolean togglePvP;
     private boolean DistributionExperience;
+    private HashMap<String, Roles> roles;
 
-    public Clan(String nameClan, String leader, List<String> members, int level, int experienceClan, String tag, boolean togglePvP, boolean DistributionExperience) {
+    public Clan(String nameClan, String leader, List<String> members, int level, int experienceClan, String tag, boolean togglePvP, boolean DistributionExperience, HashMap<String, Roles> roles) {
         this.nameClan = nameClan;
         this.leader = leader;
         this.members = members;
@@ -36,6 +42,7 @@ public class Clan {
         this.togglePvP = togglePvP;
         this.experienceClan = experienceClan;
         this.DistributionExperience = DistributionExperience;
+        this.roles = roles;
     }
 
     public String getNameClan() {
@@ -57,6 +64,9 @@ public class Clan {
     public int getLevel() {
         return level;
     }
+    public void addMember(String name){
+        members.add(name);
+    }
 
     public void upLevel(int i) {
         this.level += i;
@@ -71,13 +81,70 @@ public class Clan {
         updateToggle();
     }
 
+    public void setPlayerRole(Player player, String role) {
+        if (!RolesHandler.hasRoleByName(role)) {
+            player.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.RED + "Роль которую вам хотели выдать не существует!");
+            return;
+        }
+        for (String r : roles.keySet()) {
+            if (r.equalsIgnoreCase(player.getName()) && ChatColor.stripColor(roles.get(r).getName()).equalsIgnoreCase(ChatColor.stripColor(role))) {
+                roles.remove(r);
+            }
+        }
+        roles.put(player.getName(), RolesHandler.getRoleByName(getNameClan(), role));
+
+        String query = "SELECT * FROM " + "UltraClans WHERE NameClan='%name'".replace("%name", getNameClan());
+        try {
+            Statement stmt = UltraClans.getInstance().getDb().getConnection().createStatement();
+            ResultSet resultSet = stmt.executeQuery(query);
+            List<String> users = new ArrayList<>();
+            while (resultSet.next()) {
+                String string = resultSet.getString(4);
+                for (int i = 0; i < Math.max(1, Arrays.stream(string.split(",")).count()); i++) {
+                    if (string.split(",")[i] == null) continue;
+                    String member = string.split(",")[i];
+
+                    if (!member.contains(":"))
+                        member = UltraClans.getInstance().baseRole + ":" + member;
+                    else member = role + ":" + member.split(":")[1];
+                    users.add(member);
+                }
+            }
+
+            StringBuilder result = new StringBuilder();
+
+            for (String u : users) {
+                result.append(u).append(",");
+            }
+
+            String getMembers = removeLast(result.toString(), 1);
+
+            String queryUpdate = "UPDATE UltraClans SET Users = '%newMembers'".replace("%newMembers", getMembers);
+            stmt.executeUpdate(queryUpdate);
+            stmt.close();
+            resultSet.close();
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String getRolePlayer(String player) {
+        return roles.get(player).getName();
+    }
+
     public boolean isDistributionExperience() {
-        return UltraClans.getInstance().distribution && DistributionExperience;
+        return Abilities.DISTRIBUTION_EXPERIENCE.isEnable() && DistributionExperience;
     }
 
     public void setDistributionExperience(boolean distributionExperience) {
         DistributionExperience = distributionExperience;
         updateDistributionExperience();
+    }
+
+    public HashMap<String, Roles> getRoles() {
+        return roles;
     }
 
     public int getOnlinePlayers() {
@@ -96,7 +163,11 @@ public class Clan {
         }
 
         getMembers().stream().filter(e -> Bukkit.getPlayer(e) != null).forEach(player -> {
-            Objects.requireNonNull(Bukkit.getPlayer(player)).sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.AQUA + "Ваш клан был распущен Лидером " + ChatColor.GOLD + getLeader());
+            Player p = Bukkit.getPlayer(player);
+            if (p != null) {
+                p.sendMessage(UltraClans.getInstance().getPrefix() + ChatColor.AQUA + "Ваш клан был распущен Лидером " + ChatColor.GOLD + getLeader());
+                UltraClans.getInstance().getToggleClanChat().remove(p.getUniqueId());
+            }
         });
         ClanManager.removeClanByName(getNameClan());
     }
@@ -105,8 +176,9 @@ public class Clan {
         return members.size();
     }
 
+
     public int getExperienceClan() {
-        return experienceClan;
+        return getLevel() >= UltraClans.getInstance().maxLevel ? neededExperience() : experienceClan;
     }
 
     public void setExperienceClan(int experienceClan) {
@@ -114,7 +186,7 @@ public class Clan {
     }
 
     public void addExperience(int experienceClan, Player player) {
-
+        if (getLevel() >= UltraClans.getInstance().maxLevel) return;
         if (this.experienceClan + experienceClan > neededExperience()) {
             upLevel();
             ClanManager.sendBossBar(this, player, true);
@@ -141,7 +213,7 @@ public class Clan {
     }
 
     public int neededExperience() {
-        return getLevel() * UltraClans.getInstance().multiply_level_to_experience;
+        return getLevel() * UltraClans.getInstance().multiply_level_to_experience + (getLevel() > 1 ? ((getLevel() - 1) * UltraClans.getInstance().multiply_level_to_experience) : 0);
     }
 
     public void upLevel() {
@@ -243,5 +315,6 @@ public class Clan {
             e.printStackTrace();
         }
     }
+
 
 }
